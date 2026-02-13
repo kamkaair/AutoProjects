@@ -20,6 +20,7 @@ using namespace std;
 struct Characters {
     string keyName;
     string shortName;
+    bool showSprite;
     //unordered_map<string, string> emotions;
 };
 
@@ -29,8 +30,8 @@ string getWinDesktopPath() {
     if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_DESKTOP, NULL, 0, winPath))) {
         outPath = std::string(winPath) + "/";
     }
-    cout << "Current Windows desktop path: " << outPath << endl;
-    cout << "" << endl;
+    std::cout << "Current Windows desktop path: " << outPath << endl;
+    std::cout << "" << endl;
 
     return outPath;
 }
@@ -86,19 +87,22 @@ void initCharacters(unordered_map<string, Characters>& map) {
     //map["Protagonist-kun"] = { "mc", { {"angry", "angry"}, {"sad", "sad"}, {"happy", "happy"}, {"sad", "sad"}, {"surprised", "surprised"}, {"neutral", ""} } };
     //map["Narrator"] = { "", { {"happy", "smile"}, {"sad", "frown"}, {"angry", "angry"} } };
     
-    map["Protagonist-kun"] = { "protagonist mask", "mc "};
-    map["Protagonist - kun"] = { "protagonist mask", "mc " };
-    map["Narrator"] = { "", ""};
-    map["Mask"] = { "mk", "" };
+    map["Protagonist-kun"] = { "protagonist mask", "mc ", true};
+    map["Protagonist - kun"] = { "protagonist mask", "mc ", true };
+    map["Narrator"] = { "", "", false};
+    map["Mask"] = { "mk ", "", false };
 
-    map["Slime"] = { "susan", "sg " };
-    map["Susan"] = { "susan", "sg " };
+    map["Slime"] = { "susan", "sg ", true };
+    map["Susan"] = { "susan", "sg ", true };
 
-    map["Elf"] = { "ayla", "pg " };
-    map["Ayla"] = { "ayla", "pg " };
+    map["Elf"] = { "ayla", "pg ", true };
+    map["Ayla"] = { "ayla", "pg ", true };
 
-    map["Fairy"] = { "evelyn", "lg " };
-    map["Evelyn"] = { "evelyn", "lg " };
+    map["Fairy"] = { "evelyn", "lg ", true };
+    map["Evelyn"] = { "evelyn", "lg ", true };
+
+    map["Tessa"] = { "tessa", "cg ", true };
+    map["Tiger"] = { "tessa", "cg ", true };
     
     //vec.push_back({ "Protagonist-kun", "mc", {"angry", "happy", "sad", "surprised"}});
 }
@@ -137,7 +141,8 @@ int main() {
         { "Evelyn", "[lg_color]" },
         { "Fairy", "[lg_color]" },
 
-        //{ "Tessa", "[cg_color]" },
+        { "Tessa", "[cg_color]" },
+        { "Tiger", "[cg_color]" },
         //{ "", "bm_color" },
     };
     
@@ -152,7 +157,7 @@ int main() {
     inputFile.open(path + "chatInput.txt");
     inputFile.imbue(locale(locale(), new codecvt_utf8<char>)); // UTF-8 imbue
     if (!inputFile.is_open()) {
-        cout << "Blyat" << endl;
+        std::cout << "Blyat" << endl;
         return -1;
     }
     
@@ -162,6 +167,8 @@ int main() {
             // Read the original lines and extract them
             string repairedText = correctChars(textIn, characterCorrectMap);
             string targetCharacter, targetEmotion, isolatedLines, characterID, keyName;
+            bool showSprite;
+
             getTalkerAsStrings(repairedText, targetCharacter, targetEmotion, isolatedLines);
 
             isolatedLines = correctChars(isolatedLines, nameColorCorrectMap);
@@ -171,12 +178,13 @@ int main() {
                 if (targetCharacter == first) {
                     characterID = second.shortName;
                     keyName = second.keyName;
+                    showSprite = second.showSprite;
                     break;
                 }
             }
 
             // Write as lines
-            if (((earlierEmotion != targetEmotion) || (targetCharacter != earlierCharacter)) && (targetCharacter != "Narrator"))
+            if (((earlierEmotion != targetEmotion) || (targetCharacter != earlierCharacter)) && (showSprite))
                 textOut.append("show " + keyName + " " + targetEmotion + '\n');
             
             isolatedLines.erase(0, isolatedLines.find_first_not_of(" \t")); // workaround for my spaghetti... getTalkerAsStrings adds a space in the beginning
@@ -192,14 +200,14 @@ int main() {
 
     outputFile.open(path + "chatOutput.txt");
     if (!outputFile.is_open()) {
-        cout << "Blyat" << endl;
+        std::cout << "Blyat" << endl;
         return -1;
     }
     outputFile << textOut;
     outputFile.close();
 
 
-    cout << textOut << endl;
+    std::cout << textOut << endl;
     
     return 0;
 }
