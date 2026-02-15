@@ -53,14 +53,15 @@ string correctChars(string& inLine, const unordered_map<string, string> unaccept
 }
 
 void getTalkerAsStrings(string inLine, string& outStr, string& outStr2, string& outStr3) { // I want to make this better, this is ugly
-    bool emotionStr = false, restStr = false;
+    bool emotionStr = false, isolatedStr = false;
     string characterCache, emotionCache, isolatedLines;
+
     for (char chara : inLine) {
         if (chara == ':' || chara == ')') {
-            restStr = true;
+            isolatedStr = true;
             emotionStr = false;
         }
-        else if (restStr && chara != ':')
+        else if (isolatedStr && chara != ':')
             isolatedLines += chara;   
         else if (emotionStr)
             emotionCache += chara;
@@ -87,10 +88,11 @@ void initCharacters(unordered_map<string, Characters>& map) {
     //map["Protagonist-kun"] = { "mc", { {"angry", "angry"}, {"sad", "sad"}, {"happy", "happy"}, {"sad", "sad"}, {"surprised", "surprised"}, {"neutral", ""} } };
     //map["Narrator"] = { "", { {"happy", "smile"}, {"sad", "frown"}, {"angry", "angry"} } };
     
+    // 1.Keyname (only used in sprite rendering), 2.shortname and 3.if has a sprite.
     map["Protagonist-kun"] = { "protagonist mask", "mc ", true};
     map["Protagonist - kun"] = { "protagonist mask", "mc ", true };
     map["Narrator"] = { "", "", false};
-    map["Mask"] = { "mk ", "", false };
+    map["Mask"] = { "", "mk ", false };
 
     map["Slime"] = { "susan", "sg ", true };
     map["Susan"] = { "susan", "sg ", true };
@@ -103,6 +105,11 @@ void initCharacters(unordered_map<string, Characters>& map) {
 
     map["Tessa"] = { "tessa", "cg ", true };
     map["Tiger"] = { "tessa", "cg ", true };
+
+    map["Truck-kun"] = { "truck-kun", "tk ", true };
+
+    map["Writer"] = { "", "wr ", false };
+    map["Announcer"] = { "", "ar ", false };
     
     //vec.push_back({ "Protagonist-kun", "mc", {"angry", "happy", "sad", "surprised"}});
 }
@@ -143,7 +150,10 @@ int main() {
 
         { "Tessa", "[cg_color]" },
         { "Tiger", "[cg_color]" },
-        //{ "", "bm_color" },
+
+        { "Truck-kun", "[tk_color]" },
+        { "Writer", "[wr_color]" },
+        { "Announcer", "[ar_color]" },
     };
     
 
@@ -167,7 +177,7 @@ int main() {
             // Read the original lines and extract them
             string repairedText = correctChars(textIn, characterCorrectMap);
             string targetCharacter, targetEmotion, isolatedLines, characterID, keyName;
-            bool showSprite;
+            bool showSprite = false;
 
             getTalkerAsStrings(repairedText, targetCharacter, targetEmotion, isolatedLines);
 
