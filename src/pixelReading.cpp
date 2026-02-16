@@ -9,6 +9,7 @@
 using namespace std;
 
 bool pExit = false;
+
 /*
 void pressAutoKey(WORD vk) {
     INPUT input = {0};
@@ -26,6 +27,7 @@ void releaseAutoKey(WORD vk) {
     SendInput(1, &input, sizeof(INPUT));
 }
 */
+
 
 struct keyBinding {
     int vk;
@@ -52,7 +54,7 @@ void mouseAutoKey(WORD vk, int posX, int posY) {
 
     SendInput(3, Inputs, sizeof(INPUT));
 
-    cout << "Left clicked!" << endl;
+    std::cout << "Left clicked!" << endl;
 
     Sleep(50);
 }
@@ -98,7 +100,9 @@ int main()
 
     COLORREF c;
     //COLORREF targetColor = RGB(0, 0, 0);
-    COLORREF targetColor = RGB(75, 219, 106);
+    COLORREF targetColor = RGB(75, 219, 106); 
+    COLORREF altColor = RGB(33, 33, 33);//rgb(33, 33, 33)
+
     POINT p;
 
     // Async inputs
@@ -109,7 +113,7 @@ int main()
             x = p.x;
             y = p.y;
 
-            cout << "Targetting pixels: x:" << x << " - y:" << y << endl;
+            std::cout << "Targetting pixels: x:" << x << " - y:" << y << endl;
             locationLock = true;
             }
         } 
@@ -118,7 +122,7 @@ int main()
     keyBindings.push_back({ VK_TAB,[&]()
         {
             isRunning = !isRunning;
-            cout << "Run mode: " << isRunning << endl;
+            std::cout << "Run mode: " << isRunning << endl;
         }
     });
 
@@ -129,19 +133,39 @@ int main()
     });
 
     thread(inputCallback).detach();
-
+    
     // Async inputs would be better
     while (locationLock != true) {
-        //cout << "Input..." << endl;
+        std::cout << "";
     }
-    cout << "Wait..." << endl;
+
+    std::cout << "Wait..." << endl;
     Sleep(1000);
-    cout << "NOW" << endl;
+    std::cout << "NOW" << endl;
     while (pExit != true) {
         
         c = GetPixel(dng, x, y);
         if(colorMatch(c, targetColor) && isRunning)
             mouseAutoKey(MOUSEEVENTF_LEFTDOWN, x, y);
+        
+
+        /*
+        c = GetPixel(dng, x, y);
+
+        if (colorMatch(c, targetColor) && isRunning) {
+            pressAutoKey('D');
+            Sleep(30); // avoid demolishing CPU
+            releaseAutoKey('D');
+            Sleep(150); // avoid demolishing CPU
+            
+        }
+        else if (colorMatch(c, altColor) && isRunning) {
+            pressAutoKey('A');
+            Sleep(30); // avoid demolishing CPU
+            releaseAutoKey('A');
+            Sleep(150); // avoid demolishing CPU
+        }
+        */
     }
 
     // Releasing the Handle
