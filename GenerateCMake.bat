@@ -15,6 +15,7 @@ echo. > "%OUTPUT%"
 
 :: Write all the CMake setup...
 echo cmake_minimum_required(VERSION 3.5) >> "%OUTPUT%"
+echo set(CMAKE_GENERATOR_TOOLSET "v142") >> "%OUTPUT%"
 echo set(CMAKE_CXX_STANDARD 17) >> "%OUTPUT%"
 echo project(Automation) >> "%OUTPUT%"
 echo file(GLOB_RECURSE HDR_FILES "src/*.h") >> "%OUTPUT%"
