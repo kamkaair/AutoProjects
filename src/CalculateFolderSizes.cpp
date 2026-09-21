@@ -1,13 +1,11 @@
 #include <iostream>
 #include <filesystem>
 #include <string>
+#include <functional>
 
 using namespace std;
 
-//const string path = "D:/Koulu/OmatProjektit/AutoProjects";
-//const string path = "D:/Koulu/OpenGL/FantaInMySystem/assets/Saves";
-//const string path = "D:/Koulu/OpenGL/FantaInMySystem/assets/textures";
-const string path = "D:/Koulu/OpenGL/FantaInMySystem";
+const string path = "D:/Blender";
 
 tuple<double, int> convertToDouble(const uintmax_t& fileSize) {
     double mantissa = fileSize;
@@ -32,45 +30,53 @@ string convertToString(double& mantissa, int& index) {
     return result;
 }
 
-uintmax_t iterateDirectoryChild(const string& path, bool couting = false) {
+void tryCatch(const string& path, function<void()> func) {
+    try {
+        func();
+    }
+    catch (const filesystem::filesystem_error& error) {
+        cerr << "SKIPPED: unreadable file: " << path << endl;
+    }
+}
+
+uintmax_t iterateDirectory(const string& path) {
     uintmax_t totalResult = 0;
-    for (std::filesystem::directory_entry const& entry : std::filesystem::directory_iterator(path)) {
-        if (entry.is_regular_file())
-            totalResult += entry.file_size();
-        else if (entry.is_directory())
-            totalResult += iterateDirectoryChild(entry.path().string());
+
+    filesystem::directory_options settings = filesystem::directory_options::skip_permission_denied | filesystem::directory_options::follow_directory_symlink;
+    for (filesystem::directory_entry const& entry : filesystem::directory_iterator(path, settings)) {     
+        tryCatch(path, [&entry, &totalResult]() {
+            if (entry.is_regular_file()) {
+                totalResult += entry.file_size();
+            }
+            else if (entry.is_directory()) {
+                totalResult += iterateDirectory(entry.path().string());
+            }
+        });
     }
-    
-    if (couting) {
-        tuple<double, int> result = convertToDouble(totalResult);
-        cout << path << " - " << convertToString(get<0>(result), get<1>(result)) << endl;
-    }
-        
+
     return totalResult;
 }
 
-void iterateDirectoryMain(const string& path) {
-    vector<uintmax_t> totalSpace;
-    uintmax_t totalResult = 0, totality = 0;
+int main() {
+    uintmax_t totalSpaceTaken = 0, totalSizeOfFiles = 0;
 
     filesystem::directory_options settings = filesystem::directory_options::skip_permission_denied | filesystem::directory_options::follow_directory_symlink;
     for (filesystem::directory_entry const& entry : filesystem::directory_iterator(path, settings)) {
-        if (entry.is_regular_file())
-            totalResult += entry.file_size();
-        else if (entry.is_directory())
-            totalSpace.push_back(iterateDirectoryChild(entry.path().string(), true));
+        tryCatch(path, [&totalSizeOfFiles, &entry] {
+            if (entry.is_regular_file()) {
+                totalSizeOfFiles += entry.file_size();
+            }
+            else if (entry.is_directory()) {
+                uintmax_t dirTotal = iterateDirectory(entry.path().string());
+                totalSizeOfFiles += dirTotal;
+
+                tuple<double, int> resultTotal = convertToDouble(dirTotal);
+                cout << entry.path().string() << " - " << convertToString(get<0>(resultTotal), get<1>(resultTotal)) << endl;
+            }
+        });
     }
 
-    for (const uintmax_t& total : totalSpace) {
-        tuple<double, int> result = convertToDouble(total);
-        cout << path << " - " << convertToString(get<0>(result), get<1>(result)) << endl;
-        totality += total;
-    }
-
-    tuple<double, int> resultTotal = convertToDouble(totality);
-    cout << "Total used space: " << convertToString(get<0>(resultTotal), get<1>(resultTotal)) << endl;
-}
-
-int main() {
-    iterateDirectoryMain(path);
+    cout << endl;
+    tuple<double, int> resultTotal = convertToDouble(totalSpaceTaken);
+    cout << "Total used space in " << path << " - " << convertToString(get<0>(resultTotal), get<1>(resultTotal)) << endl;
 }
