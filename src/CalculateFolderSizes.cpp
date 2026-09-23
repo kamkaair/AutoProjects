@@ -2,10 +2,17 @@
 #include <filesystem>
 #include <string>
 #include <functional>
+#include <vector>
 
 using namespace std;
 
 const string path = "D:/Blender";
+const bool enableWarnigns = false;
+
+struct entryObj {
+    uintmax_t size;
+    string path;
+};
 
 tuple<double, int> convertToDouble(const uintmax_t& fileSize) {
     double mantissa = fileSize;
@@ -17,8 +24,10 @@ tuple<double, int> convertToDouble(const uintmax_t& fileSize) {
     return make_tuple(mantissa, index);
 }
 
-string convertToString(double& mantissa, int& index) {
+string convertToString(tuple<double, int>& inTuple) {
     const string types = "BKMGTPE";
+    double mantissa = get<0>(inTuple);
+    int index = get<1>(inTuple);
 
     string result = to_string(ceil(mantissa * 10.0) / 10.0); // Shift the decimal by one and shift it back after std::ceiling (1.47 -> 14.7 -> ceil(15) -> 1.5)
     result.erase(result.find(".") + 2); // Obliterate the trailing numbers
@@ -35,7 +44,8 @@ void tryCatch(const string& path, function<void()> func) {
         func();
     }
     catch (const filesystem::filesystem_error& error) {
-        cerr << "SKIPPED: unreadable file: " << path << endl;
+        if(enableWarnigns)
+            cerr << "SKIPPED: unreadable file: " << path << endl;
     }
 }
 
@@ -57,26 +67,34 @@ uintmax_t iterateDirectory(const string& path) {
     return totalResult;
 }
 
+bool sortEntries(entryObj const& lhs, entryObj const& rhs) {
+    return lhs.size > rhs.size;
+}
+
 int main() {
-    uintmax_t totalSpaceTaken = 0, totalSizeOfFiles = 0;
+    uintmax_t totalSpaceTaken = 0, targetFolderSize = 0;
+    vector<entryObj> resultsVec;
 
     filesystem::directory_options settings = filesystem::directory_options::skip_permission_denied | filesystem::directory_options::follow_directory_symlink;
     for (filesystem::directory_entry const& entry : filesystem::directory_iterator(path, settings)) {
-        tryCatch(path, [&totalSizeOfFiles, &entry] {
+        tryCatch(path, [&targetFolderSize, &totalSpaceTaken, &entry, &resultsVec] {
             if (entry.is_regular_file()) {
-                totalSizeOfFiles += entry.file_size();
+                targetFolderSize += entry.file_size();
             }
-            else if (entry.is_directory()) {
+            else if (entry.is_directory()) {             
                 uintmax_t dirTotal = iterateDirectory(entry.path().string());
-                totalSizeOfFiles += dirTotal;
-
-                tuple<double, int> resultTotal = convertToDouble(dirTotal);
-                cout << entry.path().string() << " - " << convertToString(get<0>(resultTotal), get<1>(resultTotal)) << endl;
+                totalSpaceTaken += dirTotal;
+                resultsVec.push_back(entryObj({ dirTotal, entry.path().string() }));
             }
         });
     }
 
+    sort(resultsVec.begin(), resultsVec.end(), sortEntries); // Sort the list of folder sizes from the largest to smallest
+
+    for (auto& entry : resultsVec)
+        cout << entry.path << " - " << convertToString(convertToDouble(entry.size)) << endl;
+
     cout << endl;
-    tuple<double, int> resultTotal = convertToDouble(totalSpaceTaken);
-    cout << "Total used space in " << path << " - " << convertToString(get<0>(resultTotal), get<1>(resultTotal)) << endl;
+    cout << "Used space in the target folder: " << convertToString(convertToDouble(targetFolderSize)) << endl;
+    cout << "Total used space in " << path << " - " << convertToString(convertToDouble(totalSpaceTaken)) << endl;
 }
