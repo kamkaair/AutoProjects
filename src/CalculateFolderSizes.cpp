@@ -6,12 +6,12 @@
 
 using namespace std;
 
-const string path = "D:/Blender";
+const filesystem::path pathSrc = "D:/Pelit/steamapps";
 const bool enableWarnigns = false;
 
 struct entryObj {
     uintmax_t size;
-    string path;
+    wstring path;
 };
 
 tuple<double, int> convertToDouble(const uintmax_t& fileSize) {
@@ -39,30 +39,31 @@ string convertToString(tuple<double, int>& inTuple) {
     return result;
 }
 
-void tryCatch(const string& path, function<void()> func) {
+void tryCatch(const filesystem::path& path, function<void()> func, string err) {
     try {
         func();
     }
     catch (const filesystem::filesystem_error& error) {
         if(enableWarnigns)
-            cerr << "SKIPPED: unreadable file: " << path << endl;
+            cerr << err << path << endl;
     }
 }
 
-uintmax_t iterateDirectory(const string& path) {
+uintmax_t iterateDirectory(const filesystem::path& path) {
     uintmax_t totalResult = 0;
 
-    filesystem::directory_options settings = filesystem::directory_options::skip_permission_denied | filesystem::directory_options::follow_directory_symlink;
-    for (filesystem::directory_entry const& entry : filesystem::directory_iterator(path, settings)) {     
-        tryCatch(path, [&entry, &totalResult]() {
-            if (entry.is_regular_file()) {
-                totalResult += entry.file_size();
-            }
-            else if (entry.is_directory()) {
-                totalResult += iterateDirectory(entry.path().string());
-            }
-        });
-    }
+    tryCatch(path, [&totalResult, &path] {
+        filesystem::directory_options settings = filesystem::directory_options::skip_permission_denied | filesystem::directory_options::follow_directory_symlink;
+        for (filesystem::directory_entry const& entry : filesystem::directory_iterator(path, settings)) {
+            tryCatch(path, [&entry, &totalResult]() {
+                if (entry.is_regular_file()) {
+                    totalResult += entry.file_size();
+                }
+                else if (entry.is_directory()) {
+                    totalResult += iterateDirectory(entry.path()); // Later on, if the child dir/files stored, then either store them as wstrings or fs paths!
+                }
+            }, "SKIPPED: unreadable file: ");
+        }}, "SKIPPED: unreadable folder: ");
 
     return totalResult;
 }
@@ -75,26 +76,30 @@ int main() {
     uintmax_t totalSpaceTaken = 0, targetFolderSize = 0;
     vector<entryObj> resultsVec;
 
-    filesystem::directory_options settings = filesystem::directory_options::skip_permission_denied | filesystem::directory_options::follow_directory_symlink;
-    for (filesystem::directory_entry const& entry : filesystem::directory_iterator(path, settings)) {
-        tryCatch(path, [&targetFolderSize, &totalSpaceTaken, &entry, &resultsVec] {
-            if (entry.is_regular_file()) {
-                targetFolderSize += entry.file_size();
-            }
-            else if (entry.is_directory()) {             
-                uintmax_t dirTotal = iterateDirectory(entry.path().string());
-                totalSpaceTaken += dirTotal;
-                resultsVec.push_back(entryObj({ dirTotal, entry.path().string() }));
-            }
-        });
-    }
+    tryCatch(pathSrc, [&totalSpaceTaken, &targetFolderSize, &resultsVec] {
+        filesystem::directory_options settings = filesystem::directory_options::skip_permission_denied | filesystem::directory_options::follow_directory_symlink;
+        for (filesystem::directory_entry const& entry : filesystem::directory_iterator(pathSrc, settings)) {
+            tryCatch(pathSrc, [&targetFolderSize, &totalSpaceTaken, &entry, &resultsVec] {
+                if (entry.is_regular_file()) {
+                    targetFolderSize += entry.file_size();
+                }
+                else if (entry.is_directory()) {
+                    uintmax_t dirTotal = iterateDirectory(entry.path());
+                    totalSpaceTaken += dirTotal;
+                    resultsVec.push_back(entryObj({ dirTotal, entry.path().wstring() })); // Used wstring, since some paths might have dubious characters. Should be able to handle those (test case had chinese letters)
+                }
+            }, "SKIPPED: unreadable file: ");
+        }
+    }, "SKIPPED: unreadable folder: ");
 
     sort(resultsVec.begin(), resultsVec.end(), sortEntries); // Sort the list of folder sizes from the largest to smallest
 
-    for (auto& entry : resultsVec)
-        cout << entry.path << " - " << convertToString(convertToDouble(entry.size)) << endl;
+    for (auto& entry : resultsVec) {
+        wcout << "\"" << entry.path;
+        cout << "\" - " << convertToString(convertToDouble(entry.size)) << endl;
+    }
 
     cout << endl;
     cout << "Used space in the target folder: " << convertToString(convertToDouble(targetFolderSize)) << endl;
-    cout << "Total used space in " << path << " - " << convertToString(convertToDouble(totalSpaceTaken)) << endl;
+    cout << "Total used space in " << pathSrc << " - " << convertToString(convertToDouble(totalSpaceTaken)) << endl;
 }
